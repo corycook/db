@@ -36,12 +36,14 @@
     class ValuesParameter extends Parameter
     {
         protected $stringset;
+
         public function __construct($prefix, $join = ', ', $suffix = '') {
             parent::__construct($prefix, $join, $suffix);
             $this->stringset = function(&$value, $key) {
                 if (is_string($value)) $value = "'$value'";
             };
         }
+
         public function serialize() {
             if (count($this->parameters)) {
                 $result_set = $this->parameters;
@@ -54,11 +56,11 @@
     
     class SearchParameter extends ValuesParameter
     {
-        private $set;
-    
+        protected $set;
+
         public function __construct() {
             parent::__construct(' WHERE ', ' AND ');
-            $this->set = function (&$value, $key) {
+            $this->set = function(&$value, $key) {
                 if (is_int($key)) {
                 } else if (is_string($value)) {
                     $value = "$key LIKE '$value'";
@@ -66,7 +68,7 @@
                     array_walk($value, $this->stringset);
                     $value = "$key IN (".implode(', ', $value).")";
                 } else if ($value instanceof DbEngine) {
-                    $value = "[$key] IN ({$value->buildsql()})";
+                    $value = "[$key] IN (".$value->tosql().")";
                 }
                 else {
                     $value = "[$key]=$value";
@@ -79,19 +81,18 @@
                 $result_set = $this->parameters;
                 array_walk($result_set, $this->set);
                 return $this->prefix.implode($this->join, $result_set);
-            } else {
-                return NULL;
             }
+            return NULL;
         }
     }
     
     class SetParameter extends ValuesParameter
     {
-        private $set;
+        protected $set;
     
         public function __construct() {
             parent::__construct(' SET ', ', ');
-            $this->set = function (&$value, $key) {
+            $this->set = function(&$value, $key) {
                 $value = "[$key]=$value";
             };
         }
@@ -102,9 +103,8 @@
                 array_walk($result_set, $this->stringset);
                 array_walk($result_set, $this->set);
                 return $this->prefix.implode($this->join, $result_set).$this->suffix;
-            } else {
-                return NULL;
             }
+            return NULL;
         }
     }
     
@@ -117,9 +117,8 @@
         public function serialize() {
             if (count($this->parameters)) {
                 return parent::serialize();
-            } else {
-                return $this->prefix.'*';
             }
+            return $this->prefix.'*';
         }
     }
     
@@ -149,7 +148,7 @@
             }
         }
     
-        public function buildsql() {
+        public function tosql() {
             $sql = '';
             foreach ($this->parameters as $param) {
                 $sql .= $param->serialize();
@@ -194,7 +193,7 @@
     
         public function result() {
             if ($this->state == $this->checkstate) return $this->res;
-            $this->res = odbc_exec($this->connection, $this->buildsql());
+            $this->res = odbc_exec($this->connection, $this->tosql());
             $this->checkstate = $this->state;
             return $this->res;
         }
@@ -212,7 +211,8 @@
     
         public function count() {
             $db = new Db($this);
-            return odbc_fetch_array($db->result('COUNT(*) as val'))['val'];
+            $db->select('COUNT(*) as val');
+            return odbc_fetch_array($db->result())['val'];
         }
     
         public function columns() {
@@ -231,7 +231,7 @@
                 odbc_free_result($this->res);
             }
         }
-
+    
         public function reset() {
             foreach($this->parameters as $parameter) {
                 $parameter->reset();
@@ -273,8 +273,8 @@
             return parent::result();
         }
     
-        public function table($col = NULL) {
-            if (!$this->count()) echo '<p>No data found.</p>';
+        public function tohtml($col = NULL) {
+            if (!$this->count()) echo '<p>No data</p>';
             else odbc_result_all($this->result($col));
             $this->refresh();
         }
@@ -325,7 +325,6 @@
         public function __construct($db, $username = NULL, $password = NULL) {
             $this->parameters['from'] = new Parameter('DELETE FROM ');
             parent::__construct($db, $username, $password);
-            return $this;
         }
     
         public function delete() {
