@@ -22,7 +22,7 @@ Create the Db object and connect to the database:
 $db = new Db('connectionNameOrString');
 ```
 
-To copy connection and table information:
+To copy connection, table, and search information:
 ```php
 $db2 = new Db($db);
 ```
@@ -156,3 +156,29 @@ Call from, search, select, group, and sort without parameters to clear previousl
 ```php
 $db->search();
 ```
+
+To update the currently selected records with new values:
+
+```php
+$db->update(array(
+  'column1Name' => 'column1Value',
+  'column2Name' => 'column2Value'
+));
+```
+
+To insert a new value into the table:
+
+```php
+$db->insert(array(
+  'column1Name' => 'column1Value',
+  'column2Name' => 'column2Value'
+));
+```
+
+To delete all currently selected records:
+
+```php
+$db->delete();
+```
+
+Warning: if you do not search() prior to calling delete() all records will be deleted from the table.
