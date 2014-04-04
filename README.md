@@ -22,15 +22,19 @@ Create the Db object and connect to the database:
 $db = new Db('connectionNameOrString');
 ```
 
+To copy connection and table information:
+```php
+$db2 = new Db($db);
+```
+
 Select a table to perform actions on:
 ```php
 $db->from('tableName');
 ```
 
-To display the table 'tableName' in HTML:
+To display as an HTML table:
 
 ```php
-$db->from('tableName');
 $db->table();
 ```
 
@@ -38,6 +42,12 @@ To retrieve generated SQL command:
 
 ```php
 $db->buildsql();
+```
+
+To retrieve a result as an array:
+
+```php
+$db->toarray();
 ```
 
 To search for a string on a column:
@@ -59,14 +69,90 @@ $db->search(array('column1Name', 'column2Name'),
 ```
 
 To search for a number (e.g. 1) on a column:
+
 ```php
 $db->search('columnName', 1);
 ```
 
 To match a value in a set of values:
+
 ```php
 $db->search('columnName', array('value1', 'value2'))
 ```
 
-To copy connection and table information:
+To match a value in a subquery:
 
+```php
+$db->search('columnName', $db2);
+```
+
+To select a column:
+
+```php
+$db->select('columnName');
+```
+
+To select multiple columns:
+
+```php
+$db->select('column1Name');
+$db->select('column2Name');
+```
+or
+```php
+$db->select(array('column1Name', 'column2Name'));
+```
+
+To sort by a value:
+
+```php
+$db->sort('columnName');
+```
+
+To sort by multiple values:
+
+```php
+$db->sort('column1Name');
+$db->sort('column2Name');
+```
+or
+```php
+$db->sort(array('column1Name', 'column2Name');
+```
+
+To group by a value:
+
+```php
+$db->group('columnName');
+```
+
+To group by multiple values:
+
+```php
+$db->group('column1Name');
+$db->group('column2Name');
+```
+or
+```php
+$db->group(array('column1Name', 'column2Name');
+```
+
+From, search, select, group, and sort can be chained for condensed programming:
+
+```php
+$db = new Db('connectionNameOrString');
+$db->from('tableName')->select('column1Name')->search('columnName', 'columnValue')->sort('columnName');
+```
+
+Table, buildsql, and toarray can be appended to a chain to return a result:
+
+```php
+$db2 = new Db($db);
+$db2->from('table2Name')->search('columnName', $db)->table();
+```
+
+Call from, search, select, group, and sort without parameters to clear previously entered values:
+
+```php
+$db->search();
+```
