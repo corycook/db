@@ -19,7 +19,7 @@ include('db.php');
 
 Create the Db object and connect to the database:
 ```php
-$db = new Db('connectionNameOrString');
+$db = new Db('connectionNameOrString', 'username', 'password');
 ```
 
 To copy connection, table, and search information:
