@@ -35,19 +35,31 @@ $db->from('tableName');
 To display as an HTML table:
 
 ```php
-$db->table();
+$db->tohtml();
 ```
 
 To retrieve generated SQL command:
 
 ```php
-$db->buildsql();
+$db->tosql();
 ```
 
 To retrieve a result as an array:
 
 ```php
 $db->toarray();
+```
+
+To retrieve the odbc_result object:
+
+```php
+$db->result();
+```
+
+To count the number of records to be returned:
+
+```php
+$db->count();
 ```
 
 To search for a string on a column:
