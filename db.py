@@ -222,8 +222,8 @@ class DeleteEngine(DbEngine):
 
 class Db(SelectEngine):
     def insert(self, object):
-        InsertEngine(self).insert(object)
+        return InsertEngine(self).insert(object)
     def update(self, object):
-        UpdateEngine(self).update(object)
+        return UpdateEngine(self).update(object)
     def delete(self):
-        DeleteEngine(self).delete()
+        return DeleteEngine(self).delete()
