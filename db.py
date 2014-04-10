@@ -2,7 +2,7 @@ from string import join
 from random import random
 from collections import OrderedDict as dict
 from exceptions import NotImplementedError
-import pypyodbc #need to cut dependency
+import pypyodbc
 
 class Parameter:
     def __init__(self, prefix, join=', ', suffix=''):
@@ -88,17 +88,18 @@ class SelectParameter(Parameter):
 class DbEngine:
     def __init__(self, db, FromParameter=None):
         if isinstance(db, DbEngine):
-            self.connection = db.connection
+            self.connection = pypyodbc.connect(db.connection.connectString)
         else:
             self.connection = pypyodbc.connect(db)
-        self.parameters = dict()
         self.cursor = self.connection.cursor()
+        self.parameters = dict()
         self.state = random()
         self.checkstate = random()
         self.refresh()
     
     def __del__(self):
-        self.connection.close()
+        if self.connection.connected:
+            self.connection.close()
 
     def tosql(self):
         sql = ''
@@ -110,7 +111,9 @@ class DbEngine:
         return sql
 
     def parameter(self, param, col=None, arg=None):
-        if isinstance(col, list) and isinstance(arg, list):
+        if col is None:
+            self.parameters[param].reset()
+        elif isinstance(col, list) and isinstance(arg, list):
             if len(col) == len(arg):
                 for i in range(1, len(col)):
                     self.parameter(param, col[i], arg[i])
@@ -130,7 +133,8 @@ class DbEngine:
         self.parameter('search', col, arg)
         return self
 
-    'def toarray():'
+    def toarray(self):
+        return self.result().fetchall()
 
     def result(self):
         if self.state == self.checkstate:
@@ -140,7 +144,12 @@ class DbEngine:
         self.checkstate = self.state
         return self.cursor
 
-    'def count():'
+    def count(self, db=None):
+        if db is None:
+            db = Db(self)
+        db.select()
+        db.select('count(*) as count')
+        return db.result().fetchall()[0]['count']
 
     def refresh(self):
         self.state = random()
