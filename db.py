@@ -154,6 +154,7 @@ class DbEngine:
         self.state = random()
         if self.cursor is not None:
             self.cursor.close()
+        return self
 
 class SelectEngine(DbEngine):
     def __init__(self, db):
