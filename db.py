@@ -1,6 +1,5 @@
-from string import join
-from random import random
 from collections import OrderedDict as dict
+from random import random
 import pypyodbc
 
 class Parameter:
@@ -25,7 +24,7 @@ class Parameter:
         if len(self.parameters):
             if values is None:
                 values = self.parameters.values()
-            return self.prefix + join(values, self.join) + self.suffix
+            return self.prefix + self.join.join(values) + self.suffix
         return None
 
 class ValuesParameter(Parameter):
@@ -86,12 +85,16 @@ class SelectParameter(Parameter):
 
 class DbEngine:
     def __init__(self, db, FromParameter=None):
+        if self.parameters is None:
+            self.parameters = dict()
         if isinstance(db, DbEngine):
             self.connection = pypyodbc.connect(db.connection.connectString)
+            for key, parameter in db.parameters.items():
+                if key in self.parameters:
+                    self.parameters[key].parameters = parameter.parameters
         else:
             self.connection = pypyodbc.connect(db)
         self.cursor = self.connection.cursor()
-        self.parameters = dict()
         self.state = random()
         self.checkstate = random()
         self.refresh()
@@ -158,16 +161,13 @@ class DbEngine:
 
 class SelectEngine(DbEngine):
     def __init__(self, db):
-        DbEngine.__init__(self, db)
+        self.parameters = dict()
         self.parameters.setdefault('select', SelectParameter())
-        if isinstance(db, DbEngine):
-            self.parameters.setdefault('from', db.parameters['from'])
-            self.parameters.setdefault('search', db.parameters['search'])
-        else:
-            self.parameters.setdefault('from', Parameter(' FROM '))
-            self.parameters.setdefault('search', SearchParameter())
+        self.parameters.setdefault('from', Parameter(' FROM '))
+        self.parameters.setdefault('search', SearchParameter())
         self.parameters.setdefault('group', Parameter(' GROUP BY '))
         self.parameters.setdefault('sort', Parameter(' ORDER BY '))
+        return DbEngine.__init__(self, db)
 
     def group(self, col=None):
         self.parameter('group', col)
@@ -183,12 +183,11 @@ class SelectEngine(DbEngine):
 
 class InsertEngine(DbEngine):
     def __init__(self, db):
-        DbEngine.__init__(self, db)
+        self.parameters = dict()
         self.parameters.setdefault('from', Parameter('INSERT INTO '))
         self.parameters.setdefault('keys', Parameter(' (', ', ', ')'))
         self.parameters.setdefault('values', ValuesParameter(' VALUES (', ', ', ')'))
-        if isinstance(db, DbEngine):
-            self.parameters['from'].parameters = db.parameters['from'].parameters
+        return DbEngine.__init__(self, db)
 
     def insert(self, object):
         if isinstance(object, dict):
@@ -199,13 +198,11 @@ class InsertEngine(DbEngine):
 
 class UpdateEngine(DbEngine):
     def __init__(self, db):
-        DbEngine.__init__(self, db)
+        self.parameters = dict()
         self.parameters.setdefault('from', Parameter('UPDATE '))
         self.parameters.setdefault('set', SetParameter())
         self.parameters.setdefault('search', SearchParameter())
-        if isinstance(db, DbEngine):
-            self.parameters['from'].parameters = db.parameters['from'].parameters
-            self.parameters['search'].parameters = db.parameters['search'].parameters
+        return DbEngine.__init__(self, db)
 
     def update(self, object):
         if isinstance(object, dict):
@@ -215,12 +212,10 @@ class UpdateEngine(DbEngine):
 
 class DeleteEngine(DbEngine):
     def __init__(self, db):
-        DbEngine.__init__(self, db)
+        self.parameters = dict()
         self.parameters.setdefault('from', Parameter('DELETE FROM '))
         self.parameters.setdefault('search', SearchParameter())
-        if isinstance(db, DbEngine):
-            self.table(db.tablename)
-            self.parameters['search'].parameters = db.parameters['search'].parameters
+        return DbEngine.__init__(self, db)
 
     def delete(self):
         return self.result()
