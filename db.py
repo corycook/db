@@ -33,8 +33,8 @@ class ValuesParameter(Parameter):
     def __init__(self, prefix, join=', ', suffix=''):
         return Parameter.__init__(self, prefix, join, suffix)
 
-    def set():
-        return NotImplementedError
+    def set(self, value, key):
+        return value
 
     @staticmethod
     def stringset(value):
