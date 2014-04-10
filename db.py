@@ -1,7 +1,6 @@
 from string import join
 from random import random
 from collections import OrderedDict as dict
-from exceptions import NotImplementedError
 import pypyodbc
 
 class Parameter:
