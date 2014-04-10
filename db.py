@@ -1,7 +1,8 @@
 from string import join
 from random import random
 from collections import OrderedDict as dict
-import pypyodbc
+from exceptions import NotImplementedError
+import pypyodbc #need to cut dependency
 
 class Parameter:
     def __init__(self, prefix, join=', ', suffix=''):
@@ -21,14 +22,19 @@ class Parameter:
     def reset(self):
         self.parameters.clear()
 
-    def serialize(self):
+    def serialize(self, values=None):
         if len(self.parameters):
-            return self.prefix + join(self.parameters.values(), self.join) + self.suffix
+            if values is None:
+                values = self.parameters.values()
+            return self.prefix + join(values, self.join) + self.suffix
         return None
 
 class ValuesParameter(Parameter):
     def __init__(self, prefix, join=', ', suffix=''):
         return Parameter.__init__(self, prefix, join, suffix)
+
+    def set():
+        return NotImplementedError
 
     @staticmethod
     def stringset(value):
@@ -37,12 +43,19 @@ class ValuesParameter(Parameter):
         else:
             return value
 
+    def serialize(self):
+        if len(self.parameters):
+            values = []
+            for key, value in self.parameters.items():
+                values.append(self.set(ValuesParameter.stringset(value), key))
+            return Parameter.serialize(self, values)
+        return None
+
 class SearchParameter(ValuesParameter):
     def __init__(self):
         return ValuesParameter.__init__(self, ' WHERE ', ' AND ')
 
-    @staticmethod
-    def set(value, key):
+    def set(self, value, key):
         if isinstance(key, int):
             return str(value)
         elif isinstance(value, str):
@@ -56,29 +69,12 @@ class SearchParameter(ValuesParameter):
         else:
             return str(key) + '=' + str(value)
 
-    def serialize(self):
-        if len(self.parameters):
-            for key, value in self.parameters.items():
-                value = ValuesParameter.stringset(value)
-                self.parameters[key] = SearchParameter.set(value, key)
-            return ValuesParameter.serialize(self)
-        return None
-
 class SetParameter(ValuesParameter):
     def __init__(self):
         return ValuesParameter.__init__(self, ' SET ')
 
-    @staticmethod
-    def set(value, key):
+    def set(self, value, key):
         return str(key) + "=" + str(value)
-
-    def serialize(self):
-        if len(self.parameters):
-            for key, value in self.parameters.items():
-                value = SetParameter.stringset(value)
-                self.parameters[key] = SetParameter.set(value, key)
-            return ValuesParameter.serialize(self)
-        return None
 
 class SelectParameter(Parameter):
     def __init__(self):
@@ -90,10 +86,15 @@ class SelectParameter(Parameter):
             return self.prefix + '*'
 
 class DbEngine:
-    def __init__(self, db, FromParameter = None):
-        self.connection = pypyodbc.connect(db)
-        self.cursor = self.connection.cursor()
+    def __init__(self, db, FromParameter=None):
+        if isinstance(db, DbEngine):
+            self.connection = db.connection
+        else:
+            self.connection = pypyodbc.connect(db)
         self.parameters = dict()
+        self.cursor = self.connection.cursor()
+        self.state = random()
+        self.checkstate = random()
         self.refresh()
     
     def __del__(self):
@@ -150,8 +151,12 @@ class SelectEngine(DbEngine):
     def __init__(self, db):
         DbEngine.__init__(self, db)
         self.parameters.setdefault('select', SelectParameter())
-        self.parameters.setdefault('from', Parameter(' FROM '))
-        self.parameters.setdefault('search', SearchParameter())
+        if isinstance(db, DbEngine):
+            self.parameters.setdefault('from', db.parameters['from'])
+            self.parameters.setdefault('search', db.parameters['search'])
+        else:
+            self.parameters.setdefault('from', Parameter(' FROM '))
+            self.parameters.setdefault('search', SearchParameter())
         self.parameters.setdefault('group', Parameter(' GROUP BY '))
         self.parameters.setdefault('sort', Parameter(' ORDER BY '))
 
@@ -173,6 +178,8 @@ class InsertEngine(DbEngine):
         self.parameters.setdefault('from', Parameter('INSERT INTO '))
         self.parameters.setdefault('keys', Parameter(' (', ', ', ')'))
         self.parameters.setdefault('values', ValuesParameter(' VALUES (', ', ', ')'))
+        if isinstance(db, DbEngine):
+            self.parameters['from'].parameters = db.parameters['from'].parameters
 
     def insert(self, object):
         if isinstance(object, dict):
@@ -187,6 +194,9 @@ class UpdateEngine(DbEngine):
         self.parameters.setdefault('from', Parameter('UPDATE '))
         self.parameters.setdefault('set', SetParameter())
         self.parameters.setdefault('search', SearchParameter())
+        if isinstance(db, DbEngine):
+            self.parameters['from'].parameters = db.parameters['from'].parameters
+            self.parameters['search'].parameters = db.parameters['search'].parameters
 
     def update(self, object):
         if isinstance(object, dict):
@@ -199,17 +209,17 @@ class DeleteEngine(DbEngine):
         DbEngine.__init__(self, db)
         self.parameters.setdefault('from', Parameter('DELETE FROM '))
         self.parameters.setdefault('search', SearchParameter())
+        if isinstance(db, DbEngine):
+            self.table(db.tablename)
+            self.parameters['search'].parameters = db.parameters['search'].parameters
 
     def delete(self):
         return self.result()
 
 class Db(SelectEngine):
     def insert(self, object):
-        Engine = InsertEngine(self)
-        Engine.insert(object)
+        InsertEngine(self).insert(object)
     def update(self, object):
-        Engine = UpdateEngine(self)
-        Engine.update(object)
+        UpdateEngine(self).update(object)
     def delete(self):
-        Engine = DeleteEngine(self)
-        Engine.delete()
+        DeleteEngine(self).delete()
